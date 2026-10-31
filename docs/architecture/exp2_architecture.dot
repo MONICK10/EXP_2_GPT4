@@ -1,0 +1,18 @@
+digraph G {
+  graph [rankdir=TB, fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.42, pad=0.25, bgcolor="white", splines=spline];
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, fillcolor="#ffffff", color="#334155", penwidth=1.2, margin="0.18,0.07"];
+  edge [color="#475569", arrowsize=0.7, penwidth=1.1, fontname="Helvetica", fontsize=10];
+user [label="User", shape=oval, fillcolor="#e2e8f0"];
+llm [label="Ollama (Local LLM Server)\nLlama 3.2", shape=box3d, fillcolor="#fde68a"];
+
+ui [label="Web Interface (Flask + HTML/JS)", fillcolor="#ede9fe"];
+inp [label="Input Module\nTopic, Style, Tone, Audience, Words", fillcolor="#ddd6fe"];
+intent [label="Intent Module\n(free-text request)", fillcolor="#ddd6fe"];
+pe [label="Prompt Engineering\n(structured prompt)"];
+subgraph cluster_m { label="Generation Modules"; style="rounded,dashed"; color="#94a3b8"; fontname="Helvetica";
+  blog [label="Blog Module"]; title [label="Title Module"]; sum [label="Summary Module"]; seo [label="SEO Module\nKeywords + Meta"]; }
+file [label="File Module", fillcolor="#dcfce7"]; store [label="saved_blogs/*.txt", shape=cylinder, fillcolor="#dbeafe"];
+user -> ui; ui -> inp; ui -> intent; inp -> pe -> blog; intent -> blog; intent -> title; intent -> sum; intent -> seo;
+blog -> llm; title -> llm; sum -> llm; seo -> llm; intent -> llm [style=dashed];
+llm -> ui [style=dashed, label=" results"]; ui -> file -> store;
+}

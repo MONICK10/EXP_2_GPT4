@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ex 2 · Blog Content Generator · URK23CS1167</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>:root { --accent: #7c3aed; --accent-soft: #f5f3ff; } #blog-out { max-height: 560px; overflow:auto; }</style>
+</head>
+<body>
+{% include "_header.html" %}
+<main class="layout">
+  <section>
+    <div class="card" id="card-input">
+      <h2>Blog Settings <span class="module-tag">Input Module</span></h2>
+      <p class="hint">Fill these in. They become a structured prompt for the LLM.</p>
+      <label for="topic">Blog Topic</label>
+      <input id="topic" placeholder="e.g. Electric Vehicles in India">
+      <div class="row">
+        <div><label for="style">Writing Style</label>
+          <select id="style">{% for s in styles %}<option {% if s=="Informative" %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+        <div><label for="tone">Tone</label>
+          <select id="tone">{% for t in tones %}<option>{{ t }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="row">
+        <div><label for="audience">Target Audience</label><input id="audience" value="College students"></div>
+        <div><label for="words">Word Count</label><input id="words" type="number" value="400" min="150" max="1500" step="50"></div>
+      </div>
+      <label for="extra">Additional Instructions (optional)</label>
+      <textarea id="extra" placeholder="e.g. Add 3 real-life examples and a short FAQ"></textarea>
+      <button id="btn-generate">Generate Blog</button>
+    </div>
+
+    <div class="card" id="card-ask">
+      <h2>Ask the Assistant <span class="module-tag">Intent Module</span></h2>
+      <p class="hint">Type what you want in plain English. The AI detects your intent.</p>
+      <input id="ask" placeholder='e.g. "give me some catchy headings for this"'>
+      <button id="btn-ask" class="secondary">Detect Intent &amp; Run</button>
+      <div id="intent-out" class="out"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card hidden" id="card-prompt">
+      <h2>Engineered Prompt <span class="module-tag">Prompt Engineering</span></h2>
+      <pre class="code out"></pre>
+    </div>
+    <div class="card hidden" id="card-blog">
+      <h2>Generated Blog <span class="module-tag">Blog Module</span> <span id="wc" class="badge"></span></h2>
+      <div class="btns">
+        <button id="btn-titles" class="secondary">Generate Titles</button>
+        <button id="btn-summary" class="secondary">Summary</button>
+        <button id="btn-seo" class="secondary">SEO Keywords</button>
+        <button id="btn-meta" class="secondary">Meta Description</button>
+        <button id="btn-save">Save Blog</button>
+        <button id="btn-copy" class="ghost">Copy</button>
+      </div>
+      <div class="out" id="blog-out"></div>
+    </div>
+    <div class="card hidden" id="card-titles"><h2>Blog Titles <span class="module-tag">Title Module</span></h2><div class="out"></div></div>
+    <div class="card hidden" id="card-summary"><h2>Blog Summary <span class="module-tag">Summary Module</span></h2><div class="out"></div></div>
+    <div class="card hidden" id="card-seo"><h2>SEO Keywords <span class="module-tag">SEO Module</span></h2><div class="out"></div></div>
+    <div class="card hidden" id="card-meta"><h2>Meta Description <span class="module-tag">SEO Module</span></h2><div class="out"></div></div>
+    <div class="card hidden" id="card-saved"><h2>Blog Saved <span class="module-tag">File Module</span></h2><div class="out"></div></div>
+  </section>
+</main>
+<footer>Monick S · URK23CS1167 · Karunya Institute of Technology and Sciences</footer>
+<script src="/static/ui.js"></script>
+<script>
+const S = { blog: "", topic: "", params: {}, titles: [], summary: "", keywords: [], meta: "" };
+const params = () => ({ topic: $("#topic").value, style: $("#style").value, tone: $("#tone").value,
+  audience: $("#audience").value, word_count: $("#words").value, instructions: $("#extra").value });
+const ctx = () => ({ ...S, ...S.params });
+
+const render = {
+  blog(r) {
+    Object.assign(S, { blog: r.blog, topic: r.params.topic, params: r.params });
+    showCard("card-prompt"); $("#card-prompt pre").textContent = r.prompt;
+    $("#blog-out").innerHTML = md(r.blog); $("#wc").textContent = r.words + " words";
+    showCard("card-blog");
+  },
+  titles(r) { S.titles = r.titles; showCard("card-titles", "<ol>" + r.titles.map((t) => `<li><b>${esc(t)}</b></li>`).join("") + "</ol>"); },
+  summary(r) { S.summary = r.summary; showCard("card-summary", md(r.summary) + `<small>${r.words} words</small>`); },
+  seo(r) { S.keywords = r.keywords; showCard("card-seo", r.keywords.map((k) => `<span class="badge" style="margin:3px">${esc(k)}</span>`).join(" ")); },
+  meta(r) { S.meta = r.meta; showCard("card-meta", `<p>${esc(r.meta)}</p><small>${r.chars} / 160 characters</small>
+    <div class="notice ok" style="margin-top:10px"><b style="color:#1a0dab">${esc(S.titles[0] || S.topic)}</b><br><span style="color:#006621">blogcraft.ai › blog</span><br>${esc(r.meta)}</div>`); },
+  saved(r) { showCard("card-saved", `<div class="notice ok">✔ Blog saved successfully</div>
+    <div class="kv"><div>File name</div><div>${esc(r.file)}</div><div>Location</div><div>${esc(r.path)}</div><div>Size</div><div>${r.size} bytes</div></div>`); },
+};
+
+$("#btn-generate").onclick = (e) => withLoading(e.target, async () => render.blog(await api("/api/generate", params())));
+$("#btn-titles").onclick = (e) => withLoading(e.target, async () => render.titles(await api("/api/titles", ctx())));
+$("#btn-summary").onclick = (e) => withLoading(e.target, async () => render.summary(await api("/api/summary", ctx())));
+$("#btn-seo").onclick = (e) => withLoading(e.target, async () => render.seo(await api("/api/seo", ctx())));
+$("#btn-meta").onclick = (e) => withLoading(e.target, async () => render.meta(await api("/api/meta", ctx())));
+$("#btn-save").onclick = (e) => withLoading(e.target, async () => render.saved(await api("/api/save", ctx())));
+$("#btn-copy").onclick = () => { navigator.clipboard.writeText(S.blog); toast("Blog copied"); };
+
+const MAP = { BLOG: "blog", TITLE: "titles", SUMMARY: "summary", SEO: "seo", META: "meta", SAVE: "saved" };
+$("#btn-ask").onclick = (e) => withLoading(e.target, async () => {
+  const r = await api("/api/intent", { ...ctx(), params: params(), text: $("#ask").value });
+  $("#intent-out").innerHTML = `<div class="kv" style="margin-top:12px">
+    <div>Your request</div><div>${esc($("#ask").value)}</div>
+    <div>Detected intent</div><div><span class="badge">${r.intent.intent}</span> <small>(${esc(r.intent.source)})</small></div>
+    <div>Reason</div><div>${esc(r.intent.reason)}</div></div>`;
+  render[MAP[r.intent.intent]](r.result);
+});
+</script>
+</body>
+</html>
